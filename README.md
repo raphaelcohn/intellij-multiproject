@@ -1,5 +1,5 @@
 # intellij-multiproject
-[intellij-multiproject] is a MIT-licensed shell script.
+[intellij-multiproject] is a MIT-licensed shell script to make it easy to embed other IntelliJ projects that are libraries within a master project. To use it from another project, add it as a submodule in `tools/intellij-multiproject` then `ln -s tools/intellij-multiproject/intellij-multiproject-git-hook git-pull-hook`.
 
 ## What is combined
 * Modules
