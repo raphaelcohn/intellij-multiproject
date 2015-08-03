@@ -3,12 +3,12 @@
 
 ## What is combined
 * Modules
+* Artifacts (output paths are re-written)
+* Library definitions (subprojects overwrite master; last one wins)
 
 ## What isn't combined
 
 ### What could be
-* Artifacts are not currently combined, but could be
-* Library definitions
 * Copyright profiles are not combined (use a scope to exclude the library code)
   * They could be with some work
 
