@@ -1,0 +1,77 @@
+# This file is part of intellij-multiproject. It is subject to the licence terms in the COPYRIGHT file found in the top-level directory of this distribution and at https://raw.githubusercontent.com/raphaelcohn/intellij-multiproject/master/COPYRIGHT. No part of intellij-multiproject, including this file, may be copied, modified, propagated, or distributed except according to the terms contained in the COPYRIGHT file.
+# Copyright © 2014-2015 The developers of intellij-multiproject. See the COPYRIGHT file in the top-level directory of this distribution and at https://raw.githubusercontent.com/raphaelcohn/intellij-multiproject/master/COPYRIGHT.
+
+
+intellijmultiproject_modules_prepare()
+{
+	local TMP_FILE
+	core_temporaryFiles_newFileToRemoveOnExit
+	_intellijmultiproject_modules_inputModulesTabFile="$TMP_FILE"
+	
+	core_temporaryFiles_newFileToRemoveOnExit
+	_intellijmultiproject_modules_outputModulesFileA="$TMP_FILE"
+	
+	core_temporaryFiles_newFileToRemoveOnExit
+	_intellijmultiproject_modules_outputModulesFileB="$TMP_FILE"
+}
+
+core_dependency_requires '*' xmlstarlet
+intellijmultiproject_modules_stripAnyExistingLibraries()
+{
+	xmlstarlet ed --delete "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[starts-with(@group, 'library/')]" "$_intellijmultiproject_modules_originalFilePath" >"$_intellijmultiproject_modules_outputModulesFileA"
+}
+
+core_dependency_requires '*' xmlstarlet sed rm mv
+intellijmultiproject_modules_process()
+{
+	local libraryName="$1"
+	local modulesXmlFilePath="$2"
+	
+	local separator="$(printf '\t')"
+	
+	# The space and quoting are critical
+	xmlstarlet sel --template --match "/project[component[@name = 'ProjectModuleManager']]/component/modules/module" \
+		--value-of '@fileurl' --output "$separator" \
+		--value-of '@filepath' --output "$separator" \
+		--value-of '@group' --nl "$modulesXmlFilePath" >"$_intellijmultiproject_modules_inputModulesTabFile"
+	
+	local replacementPattern='$PROJECT_DIR$'
+	replacementPattern="${replacementPattern}"/"$intellijmultiproject_libraryPath"/"$libraryName"
+	
+	# Replace $PROJECT_DIR$ with $PROJECT_DIR$/library/libraryName
+	# Make the replacement RHS safe: http://backreference.org/2009/12/09/using-shell-variables-in-sed/  (Use 's/[[\.*^$(){}?+|/]/\\&/g' for LHS)
+	local safeReplacementPattern="$(printf '%s\n' "$replacementPattern"  | sed 's/[[\.*/]/\\&/g; s/$$/\\&/; s/^^/\\&/')"
+	
+	local fileurl
+	local file
+	local group
+	while IFS="$separator" read -r fileurl file group
+	do
+		local outputFileUrl="(printf '%s\n' "$fileurl" | sed "s/\$PROJECT_DIR\$/$safeReplacementPattern/g")"
+		
+		local outputFile="(printf '%s\n' "$file" | sed "s/\$PROJECT_DIR\$/$safeReplacementPattern/g")"
+	
+		if [ -z "$group "]; then
+			local outputGroup=library/"$libraryName"
+		else
+			local outputGroup=library/"$libraryName"/"$group"
+		fi
+	done <"$_intellijmultiproject_modules_inputModulesTabFile"
+	
+	xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules" --type elem -n module --value NEW "$_intellijmultiproject_modules_outputModulesFileA" | \
+		xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']" --type attr -n fileurl -v "$outputFileUrl" | \
+		xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']" --type attr -n file -v "$outputFile" | \
+		xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']" --type attr -n group -v "$outputGroup" | \
+		xmlstarlet ed --delete "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']/text()" >"$_intellijmultiproject_modules_outputModulesFileB"
+	
+	rm "$_intellijmultiproject_modules_outputModulesFileA"
+	mv "$_intellijmultiproject_modules_outputModulesFileB" "$_intellijmultiproject_modules_outputModulesFileA"
+}
+
+core_dependency_requires '*' rm mv
+intellijmultiproject_modules_moveIntoPosition()
+{
+	return 0
+	rm "$_intellijmultiproject_modules_originalFilePath"
+	mv "$_intellijmultiproject_modules_outputModulesFileA" "$_intellijmultiproject_modules_originalFilePath"
+}
