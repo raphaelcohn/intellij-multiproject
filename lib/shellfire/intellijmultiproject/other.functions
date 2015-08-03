@@ -54,7 +54,7 @@ intellijmultiproject_other_process()
 				rm "$destinationFilePath".bak
 				
 				mv "$destinationFilePath" "$destinationFilePath".bak
-				xmlstarlet ed --update "/component[@name = 'ArtifactManager']/artifact/@name" --value "$basename"."$libraryName" "$destinationFilePath".bak >"$destinationFilePath"
+				xmlstarlet ed --update "/component[@name = 'ArtifactManager']/artifact/@name" --value "$basename"_"$libraryName" "$destinationFilePath".bak >"$destinationFilePath"
 				rm "$destinationFilePath".bak
 			fi
 		done
