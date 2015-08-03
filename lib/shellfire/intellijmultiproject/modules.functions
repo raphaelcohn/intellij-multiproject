@@ -43,35 +43,36 @@ intellijmultiproject_modules_process()
 	local safeReplacementPattern="$(printf '%s\n' "$replacementPattern"  | sed 's/[[\.*/]/\\&/g; s/$$/\\&/; s/^^/\\&/')"
 	
 	local fileurl
-	local file
+	local filepath
 	local group
-	while IFS="$separator" read -r fileurl file group
+	while IFS="$separator" read -r fileurl filePath group
 	do
-		local outputFileUrl="(printf '%s\n' "$fileurl" | sed "s/\$PROJECT_DIR\$/$safeReplacementPattern/g")"
+		local outputFileurl="$(printf '%s\n' "$fileurl" | sed "s/\\\$PROJECT_DIR\\\$/$safeReplacementPattern/g")"
 		
-		local outputFile="(printf '%s\n' "$file" | sed "s/\$PROJECT_DIR\$/$safeReplacementPattern/g")"
+		local outputFilepath="$(printf '%s\n' "$filepath" | sed "s/\\\$PROJECT_DIR\\\$/$safeReplacementPattern/g")"
 	
-		if [ -z "$group "]; then
+		if [ -z "$group" ]; then
 			local outputGroup=library/"$libraryName"
 		else
 			local outputGroup=library/"$libraryName"/"$group"
 		fi
+	
+		xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules" --type elem -n module --value NEW "$_intellijmultiproject_modules_outputModulesFileA" | \
+			xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']" --type attr -n fileurl -v "$outputFileurl" | \
+			xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']" --type attr -n filepath -v "$outputFilepath" | \
+			xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']" --type attr -n group -v "$outputGroup" | \
+			xmlstarlet ed --delete "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']/text()" >"$_intellijmultiproject_modules_outputModulesFileB"
+	
+		rm "$_intellijmultiproject_modules_outputModulesFileA"
+		mv "$_intellijmultiproject_modules_outputModulesFileB" "$_intellijmultiproject_modules_outputModulesFileA"
+		
 	done <"$_intellijmultiproject_modules_inputModulesTabFile"
 	
-	xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules" --type elem -n module --value NEW "$_intellijmultiproject_modules_outputModulesFileA" | \
-		xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']" --type attr -n fileurl -v "$outputFileUrl" | \
-		xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']" --type attr -n file -v "$outputFile" | \
-		xmlstarlet ed --subnode "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']" --type attr -n group -v "$outputGroup" | \
-		xmlstarlet ed --delete "/project[component[@name = 'ProjectModuleManager']]/component/modules/module[text() = 'NEW']/text()" >"$_intellijmultiproject_modules_outputModulesFileB"
-	
-	rm "$_intellijmultiproject_modules_outputModulesFileA"
-	mv "$_intellijmultiproject_modules_outputModulesFileB" "$_intellijmultiproject_modules_outputModulesFileA"
 }
 
 core_dependency_requires '*' rm mv
 intellijmultiproject_modules_moveIntoPosition()
 {
-	return 0
 	rm "$_intellijmultiproject_modules_originalFilePath"
 	mv "$_intellijmultiproject_modules_outputModulesFileA" "$_intellijmultiproject_modules_originalFilePath"
 }

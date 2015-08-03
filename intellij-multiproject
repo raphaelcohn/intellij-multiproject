@@ -11,6 +11,7 @@ _program()
 	intellijmultiproject()
 	{	
 		intellijmultiproject_modules_prepare
+		intellijmultiproject_other_findProjectOutputPath
 		intellijmultiproject_modules_stripAnyExistingLibraries
 		intellijmultiproject_iterate_processProjects
 		intellijmultiproject_modules_moveIntoPosition
@@ -48,10 +49,11 @@ if on the PATH."
   -l, --library-path RELATIVE-PATH   library path RELATIVE-PATH relative to PROJECT_DIR to search for projects to include, defaults to '${_program_default_libraryPath}'"
     _program_commandLine_helpMessage_optionsSpacing='   '
 	_program_commandLine_helpMessage_configurationKeys="
-  intellijmultiproject_libraryPath         Equivalent to --library-path
+  intellijmultiproject_projectDir       Equivalent to --project-dir
+  intellijmultiproject_libraryPath      Equivalent to --library-path
 "
 	_program_commandLine_helpMessage_examples="
-  ${_program_name} --server test.mosquitto.org --backends nc,devtcp --client-id 12 -- /path/to/connection-details.scriptlet
+  ${_program_name} --project-dir /path/to/dir/containing/.idea --library-path library
 "
 }
 
@@ -100,14 +102,20 @@ _program_commandLine_validate()
 	
 	if core_variable_isUnset intellijmultiproject_libraryPath; then
 		intellijmultiproject_libraryPath="$_program_default_libraryPath"
-	else
-		core_validate_folderPathReadableAndSearchable $core_commandLine_exitCode_CONFIG 'configuration setting' 'intellijmultiproject_libraryPath' "$intellijmultiproject_libraryPath"
 	fi
 	
-	_intellijmultiproject_libraryAbsoluteFolderPath="$_program_default_projectDir"/"$intellijmultiproject_libraryPath"
+	# Make absolute
+	pushd "$intellijmultiproject_projectDir"
+		intellijmultiproject_projectDir="$(pwd)"
+	popd
+	
+	_intellijmultiproject_ideaFolderPath="$intellijmultiproject_projectDir"/.idea
+	core_validate_folderPathReadableAndSearchable $core_commandLine_exitCode_CONFIG 'combined setting' 'resolved _intellijmultiproject_ideaFolderPath' "$_intellijmultiproject_ideaFolderPath"
+	
+	_intellijmultiproject_libraryAbsoluteFolderPath="$intellijmultiproject_projectDir"/"$intellijmultiproject_libraryPath"
 	core_validate_folderPathReadableAndSearchable $core_commandLine_exitCode_CONFIG 'combined setting' 'resolved intellijmultiproject_libraryPath' "$_intellijmultiproject_libraryAbsoluteFolderPath"
-
-	_intellijmultiproject_modules_originalFilePath="$_program_default_projectDir"/.idea/modules.xml
+	
+	_intellijmultiproject_modules_originalFilePath="$_intellijmultiproject_ideaFolderPath"/modules.xml
 	core_validate_filePathReadable $core_commandLine_exitCode_CONFIG 'combined setting' 'project .idea/modules.xml' "$_intellijmultiproject_modules_originalFilePath"
 }
 
